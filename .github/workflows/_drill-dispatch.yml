@@ -1,0 +1,28 @@
+name: _drill dispatch
+# 临时演练：验证「GITHUB_TOKEN + actions:write 能否 workflow_dispatch 派发构建」。
+# 验证完即删除，不留在仓库里。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 用 GITHUB_TOKEN 派发 publish-vps-image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "权限自检："
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-vps-image.yml" --jq '.name + " / " + .state'
+          echo "派发中…"
+          gh workflow run publish-vps-image.yml --repo "${GITHUB_REPOSITORY}" --ref main
+          sleep 6
+          echo "最近的运行："
+          gh run list --repo "${GITHUB_REPOSITORY}" --workflow publish-vps-image.yml --limit 2 \
+            --json databaseId,event,status --jq '.[] | "\(.databaseId) \(.event) \(.status)"'

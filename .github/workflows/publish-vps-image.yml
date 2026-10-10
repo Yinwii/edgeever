@@ -24,7 +24,7 @@ on:
         required: false
         type: string
   schedule:
-    - cron: "20 6 * * *"
+    - cron: "20 */4 * * *"   # 兜底：每 4 小时
   push:
     branches: [main]
     paths:

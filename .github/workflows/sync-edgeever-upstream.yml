@@ -21,6 +21,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write
 
 concurrency:
   group: edgeever-upstream-update
@@ -315,6 +316,24 @@ jobs:
           echo "method=git_push_and_deploy_hook" >> "${GITHUB_OUTPUT}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "Triggered optional Cloudflare Deploy Hook after publish." >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Trigger VPS image build / 派发 VPS 镜像构建
+        id: vps
+        # sync 用 GITHUB_TOKEN 推送；GitHub 规定这种推送不会触发 push 类工作流，
+        # workflow_dispatch 是少数被允许的例外，因此在这里显式派发。
+        # 若本步被上游改动覆盖，仍有 publish-vps-image 的每日兜底 schedule 接住。
+        if: steps.publish.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          if gh workflow run publish-vps-image.yml --repo "${GITHUB_REPOSITORY}" --ref main; then
+            echo "Dispatched VPS image build." >> "${GITHUB_STEP_SUMMARY}"
+            echo "triggered=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "::warning title=VPS build dispatch failed / 派发失败::无法派发 publish-vps-image.yml，将由每日兜底 schedule 构建。"
+            echo "triggered=false" >> "${GITHUB_OUTPUT}"
+          fi
 
       - name: Report result / 输出结果
         if: always() && steps.upstream.outcome == 'success'
